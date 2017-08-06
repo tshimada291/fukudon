@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+<meta charset="utf-8">
+<meta name="author" content="T.Shimada">
+<meta name="description" content="福井県のおいしい丼を紹介する「福丼県プロジェクト」提供データを基にした、丼の提供店と周辺観光地・飲食店を紹介するマップです。">
+<meta name="keywords" content="福井県,福丼県,丼,グルメ,観光,ツーリズム">
+<title>福丼県 丼ツーリズムマップ</title>
+<style>
+html, body{
+	font-family: 'Lucida Grande', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+	height: 100%;
+	margin: 0px;
+	background-color: #ffffff;
+}
+#map-canvas{
+	float: left;
+	height: 85%;
+	width: 100%;
+	margin: 0px;
+}
+h1{
+	margin: 0;
+	text-align: center;
+	color: #ffffff;
+	background-color: #D60C18;
+}
+div.infowin{width: 100%}
+div.infowin h2{
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	color: #ffffff;
+}
+div.infowin h2.don{background-color: #D60C18;}
+div.infowin h2.grm{background-color: #ff9900;}
+div.infowin h2.spt{background-color: #66cc00;}
+div.infowin img{
+	width: 50%;
+	height: auto;
+	display: block;
+	margin: 0 auto;
+}
+#footer{
+	clear: left;
+	font-size: 0.8em;
+	padding: 5px;
+}
+</style>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script>
+//LinkData内rdf.json コールバック
+var rdfURL="http://linkdata.org/api/1/rdf1s2442i/donburi_tourism_in_fukui_rdf.json?callback=?";
+
+var map;
+var Markers = [];	//マーカー群
+var infowindow;
+
+///// 初期関数
+function init() {
+	// マップの初期設定
+	var mapOptions = {mapTypeId: google.maps.MapTypeId.ROADMAP};
+	map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);	//マップ生成
+	setZoomLv(35.34333, 135.44944, 36.29559, 136.83222);	//ズームレベル調整
+
+	infowindow = new google.maps.InfoWindow();
+	google.maps.event.addListener(map, 'click', function() {infowindow.close();});
+
+	SetMarkerRDF();
+}
+
+///// マーカー設定
+function SetMarkerRDF(){
+	$.getJSON(rdfURL, function(data){
+		for (var key in data){	//データが終わるまで繰り返し
+			var no    = data[key]["http://www.w3.org/2000/01/rdf-schema#label"][0].value;
+			var area  = data[key]["http://linkdata.org/property/rdf1s2442i#%E3%82%A8%E3%83%AA%E3%82%A2"][0].value;
+			var city  = data[key]["http://linkdata.org/property/rdf1s2442i#%E6%89%80%E5%9C%A8%E5%9C%B0"][0].value;
+			var genre = data[key]["http://linkdata.org/property/rdf1s2442i#%E3%82%B8%E3%83%A3%E3%83%B3%E3%83%AB"][0].value;
+			var name  = data[key]["http://linkdata.org/property/rdf1s2442i#%E5%90%8D%E7%A7%B0"][0].value;
+			var subti = data[key]["http://linkdata.org/property/rdf1s2442i#%E3%82%B5%E3%83%96%E3%82%BF%E3%82%A4%E3%83%88%E3%83%AB"][0].value;
+			var desc  = data[key]["http://linkdata.org/property/rdf1s2442i#%E8%AA%AC%E6%98%8E"][0].value;
+			var addr  = data[key]["http://linkdata.org/property/rdf1s2442i#%E4%BD%8F%E6%89%80"][0].value;
+
+			//データなしの場合あり
+			var tel="";
+			var url="";
+			var hour="";
+			var holid="";
+			var comme="";
+			if("http://linkdata.org/property/rdf1s2442i#%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7" in data[key])	//指定プロパティがあれば値取得
+				tel = data[key]["http://linkdata.org/property/rdf1s2442i#%E9%9B%BB%E8%A9%B1%E7%95%AA%E5%8F%B7"][0].value;
+
+			if("http://linkdata.org/property/rdf1s2442i#URL" in data[key])
+				url = data[key]["http://linkdata.org/property/rdf1s2442i#URL"][0].value;
+
+			if("http://linkdata.org/property/rdf1s2442i#%E5%96%B6%E6%A5%AD%E6%99%82%E9%96%93" in data[key])
+				hour  = data[key]["http://linkdata.org/property/rdf1s2442i#%E5%96%B6%E6%A5%AD%E6%99%82%E9%96%93"][0].value;
+
+			if("http://linkdata.org/property/rdf1s2442i#%E5%AE%9A%E4%BC%91%E6%97%A5" in data[key])
+				holid = data[key]["http://linkdata.org/property/rdf1s2442i#%E5%AE%9A%E4%BC%91%E6%97%A5"][0].value;
+
+			if("http://linkdata.org/property/rdf1s2442i#%E5%82%99%E8%80%83" in data[key])
+			var comme = data[key]["http://linkdata.org/property/rdf1s2442i#%E5%82%99%E8%80%83"][0].value;
+
+			var lat   = data[key]["http://linkdata.org/property/rdf1s2442i#%E7%B7%AF%E5%BA%A6"][0].value;
+			var lng   = data[key]["http://linkdata.org/property/rdf1s2442i#%E7%B5%8C%E5%BA%A6"][0].value;
+			var img   = no + ".jpg";
+
+			var icon;
+			if(genre.indexOf("丼")>=0)	icon = "https://chart.googleapis.com/chart?chst=d_map_spin&chld=0.4|0|D60C18|0|_| "
+			else if(genre.indexOf("飲食")>=0) icon = "https://chart.googleapis.com/chart?chst=d_map_spin&chld=0.4|0|ff9900|0|_| "
+			else icon = "https://chart.googleapis.com/chart?chst=d_map_spin&chld=0.4|0|66cc00|0|_| "
+
+
+			//マップオブジェクト設定
+			var obj = {
+				position: new google.maps.LatLng(lat,lng),
+				map: map,
+				title: name,
+				icon: icon
+			};
+			obj.genre = genre;
+			obj.area  = area;
+			obj.city  = city;
+			var marker = new google.maps.Marker(obj);	//マーカー生成
+			Markers.push(marker);	//マーカーオブジェクトを保持
+
+			//情報ウィンドウ表示内容
+			var msg = '<div class="infowin">';
+			if(genre.indexOf("丼")>=0)
+				msg += '<h2 class="don">';
+			else if(genre.indexOf("飲食")>=0)
+				msg += '<h2 class="grm">';
+			else
+				msg += '<h2 class="spt">';
+
+			msg += name + '</h2>'
+					+ '<img src="./images/' + img + '" title="' + name +'">'
+					+ '<p><b>「' + subti + '」</b></p>'
+					+ '<p>' + desc + '</p>'
+					+ '<p>住所：' + addr + '</p>';
+			if(hour != "") msg += '<p>営業時間： ' + hour + '</p>';
+			if(holid != "") msg += '<p>定休日： ' + holid + '</p>';
+			if(comme != "") msg += '<p>備考： ' + comme + '</p>';
+			if(url != "") msg += '<p>Webサイト： <a href="' + url + '" target="_blank">' + url + '</a></p>';
+			msg += '</div>';
+
+			setMarkerEvent(marker, msg, lat, lng, map);
+		}
+	});
+}
+
+///// マーカーの設定
+//  marker: マーカーオブジェクト
+//  msg:    表示するメッセージ
+function setMarkerEvent(marker, msg, lat, lng) {
+	//マーカークリック時にメッセージウィンドウを表示
+	google.maps.event.addListener(marker, 'click', function(event) {
+		if(infowindow) infowindow.close();	//先に開いているウィンドウを閉じる
+		infowindow = new google.maps.InfoWindow({
+			content: msg//,
+			//maxWidth: 200
+		});
+		infowindow.open(map, marker);
+
+		//map.setCenter(new google.maps.LatLng(lat,lng));
+		//map.panTo(new google.maps.LatLng(lat,lng));	//クリック時にフォーカス移動
+		//map.setZoom(12);
+	});
+	google.maps.event.addListener(marker, 'mouseover', function() {
+		marker.setZIndex(1000);	//マウスオーバー時に最前列表示
+	});
+	google.maps.event.addListener(marker, 'mouseout', function() {
+		marker.setZIndex(undefined);	//最前列表示を解除
+	});
+}
+
+// 表示内容の選択
+function showMarkerbyGenre(){
+	var opt1 = document.getElementById('genre').value;
+	for(i=0; i<Markers.length; i++){
+		if(opt1=="all"){
+				Markers[i].setVisible(true);
+		}
+		else if((Markers[i].genre).indexOf(opt1) >= 0){
+			Markers[i].setVisible(true);
+		}
+		else{
+			Markers[i].setVisible(false);
+			infowindow.close();
+		}
+	}
+}
+
+// 表示内容の選択
+function showMarkerbyArea(){
+	var opt2 = document.getElementById('area').value;
+	for(i=0; i<Markers.length; i++){
+		if(opt2=="all"){
+				Markers[i].setVisible(true);
+		}
+		else if((Markers[i].area).indexOf(opt2) >= 0){
+			Markers[i].setVisible(true);
+		}
+		else{
+			Markers[i].setVisible(false);
+			infowindow.close();
+		}
+	}
+	switch(opt2){	//エリア別にフォーカス移動
+		case "坂井":
+			setZoomLv(36.109035, 136.124561, 36.292930, 136.346819);
+			break;
+		case "奥越":
+			setZoomLv(35.961811, 136.417502, 36.135801, 136.583630);
+			break;
+		case "福井":
+			setZoomLv(35.997464, 135.965258, 36.132733, 136.359253);
+			break;
+		case "丹南":
+			setZoomLv(35.762543, 135.952778, 35.998607, 136.364676);
+			break;
+		case "嶺南":
+			setZoomLv(35.34333, 135.44944, 35.770796, 136.133688);
+			break;
+		default:
+			setZoomLv(35.34333, 135.44944, 36.29559, 136.83222);
+			break;
+	}
+}
+
+
+//範囲指定（範囲の南西端と北東端）でズームレベル調整
+function setZoomLv(swlat, swlng, nelat, nelng){
+	var sw = new google.maps.LatLng(swlat,swlng);//南西端の座標を設定
+	var ne = new google.maps.LatLng(nelat,nelng);//北東端の座標を設定
+	var bounds = new google.maps.LatLngBounds(sw, ne);//範囲を設定
+
+	map.fitBounds(bounds);//自動調整
+}
+
+var currentmarker;	//現在地マーカー用
+//現在地取得
+function showLocation(){
+	if (!navigator.geolocation) {
+		alert("お使いのブラウザはGPSに対応しておりません。");
+		return false;
+	}
+	navigator.geolocation.getCurrentPosition(function(pos){
+		if(currentmarker)
+			currentmarker.setMap(null);	//前回のピンを削除
+
+		var currentPos = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+		currentmarker = new google.maps.Marker({
+			position: currentPos,
+			map: map,
+			title: '現在地（誤差' + pos.coords.accuracy + 'm）'
+		});
+		map.setCenter(currentPos);	//現在地へ移動
+		map.setZoom(15);
+	}, function(){
+		alert("GPSデータを取得できませんでした。");
+		return false;
+	});
+}
+
+// マップ描画用関数のロード
+google.maps.event.addDomListener(window, 'load', init);
+</script>
+<!-- Google Analytics（ソースコード再利用時は削除すること） -->
+<script src="http://www1.ttn.ne.jp/~shima/js/analytics.js"></script>
+<!-- ここまで -->
+<noscript>
+<p>このページではJavaScriptを使用しています。</p>
+</noscript>
+</head>
+<body>
+<h1>福丼県 丼ツーリズムマップ</h1>
+<form>
+<select id="genre" onchange="showMarkerbyGenre()">
+<option value="all">すべてのジャンル</option>
+<option value="丼店舗">丼のお店</option>
+<option value="飲食店">その他の飲食店</option>
+<option value="観光地">観光地・レジャー施設</option>
+</select>
+<select id="area" onchange="showMarkerbyArea()">
+<option value="all">福井県全域</option>
+<option value="坂井">坂井エリア</option>
+<option value="奥越">奥越エリア</option>
+<option value="福井">福井エリア</option>
+<option value="丹南">丹南エリア</option>
+<option value="嶺南">嶺南エリア</option>
+</select>
+<!--<input type="button" name="search1" value="この条件で検索" onclick="showMarker()">-->&nbsp;
+<input type="button" name="search2" value="現在地付近を表示" onclick="showLocation()">
+</form>
+<div id="map-canvas" width="600" height="450"></div>
+<div id="footer">このアプリは以下の著作物を改変して利用しています。<a href="http://www.pref.fukui.lg.jp/doc/toukei-jouhou/opendata/kigyou.html" target="_blank">「丼ツーリズム in ふくい」</a>、<a href="http://www.pref.fukui.lg.jp/doc/toukei-jouhou/opendata/index.html" target="_blank">福井県</a>・<a href="http://fukudon.jp/" target="_blank">福丼県プロジェクト実行委員会</a>、<a href="http://creativecommons.org/licenses/by/2.1/jp/" target="_blank">クリエイティブ・コモンズ・ライセンス 表示 2.1</a><br>
+ページ作成：<a href="http://www1.ttn.ne.jp/~shima/" target="_blank">T.Shimada</a>, Last Update: 2015/04/15</div>
+</body>
+</html>
